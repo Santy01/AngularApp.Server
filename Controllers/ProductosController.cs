@@ -81,6 +81,35 @@ namespace AngularApp.Server.Controllers
             return Ok(prod.Stock);
         }
 
+        // GET: api/Productos/reporte-inventario
+        [HttpGet("reporte-inventario")]
+        public async Task<ActionResult<ReporteInventarioProductosDto>> GetReporteInventarioProductos([FromQuery] int umbralStockBajo = 5)
+        {
+            if (umbralStockBajo < 0) umbralStockBajo = 0;
+            var lista = await _context.Productos.AsNoTracking().Where(p => p.Activo).ToListAsync();
+
+            var dto = new ReporteInventarioProductosDto
+            {
+                TotalProductosActivos = lista.Count,
+                TotalItemsEnStock = lista.Sum(p => p.Stock),
+                ValorTotalCosto = lista.Sum(p => p.Stock * p.PrecioCompra),
+                ValorTotalVenta = lista.Sum(p => p.Stock * p.PrecioVenta),
+                UmbralStockBajo = umbralStockBajo,
+                ProductosStockBajo = lista.Where(p => p.Stock <= umbralStockBajo)
+                    .OrderBy(p => p.Stock)
+                    .Select(p => new ProductoStockBajoDto
+                    {
+                        Id = p.Id,
+                        Codigo = p.Codigo,
+                        Nombre = p.Nombre,
+                        Stock = p.Stock,
+                        Umbral = umbralStockBajo,
+                        PrecioCompra = p.PrecioCompra
+                    }).ToList()
+            };
+            return Ok(dto);
+        }
+
         // DELETE: api/Productos/5 (borrado lógico)
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProducto(int id)
